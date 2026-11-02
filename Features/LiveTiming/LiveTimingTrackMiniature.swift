@@ -53,7 +53,7 @@ struct LiveTimingTrackMiniature: View {
                 line.move(to: CGPoint(x: start.x + dy / length * 6, y: start.y - dx / length * 6))
                 line.addLine(to: CGPoint(x: start.x - dy / length * 6, y: start.y + dx / length * 6))
                 context.stroke(line, with: .color(.orange), lineWidth: 3)
-                let replay = TrackMapReplay.preview(drivers: [], outline: outline)
+                let replay = CircuitPath(outline: outline)
                 for driver in snapshot.drivers {
                     guard let number = Int(driver.id),
                           let fraction = estimate.progressByNumber[number],
@@ -61,8 +61,7 @@ struct LiveTimingTrackMiniature: View {
                     let center = screen(location), radius: CGFloat = number == estimate.leaderNumber ? 6 : 4
                     let marker = Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius,
                                                        width: radius * 2, height: radius * 2))
-                    context.fill(marker, with: .color(number == estimate.leaderNumber ? .orange :
-                        Presentation.color(hex: driver.teamColor)))
+                    context.fill(marker, with: .color(Presentation.color(hex: driver.teamColor)))
                     context.stroke(marker, with: .color(.white), lineWidth: 1)
                 }
             }

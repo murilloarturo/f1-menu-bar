@@ -8,7 +8,6 @@ struct F1MenuBarApp: App {
     @State private var store: SeasonStore
     @State private var historyStore: RaceHistoryStore
     @State private var liveStore: LiveTimingStore
-    private let trackMapRepository: TrackMapRepository
     @State private var preferences = AppPreferences()
     @State private var coordinator = AppCoordinator()
     @State private var loginItem = LoginItemController()
@@ -16,7 +15,6 @@ struct F1MenuBarApp: App {
     init() {
         let directory = URL.applicationSupportDirectory.appending(path: "F1MenuBar", directoryHint: .isDirectory)
         let openF1 = OpenF1Client()
-        trackMapRepository = TrackMapRepository(client: openF1)
         let jolpica = JolpicaClient()
         let repository = FallbackSeasonRepository(
             primary: OpenF1Repository(client: openF1, cache: SnapshotCache(directory: directory)),
@@ -42,7 +40,7 @@ struct F1MenuBarApp: App {
 
         // Keep the menu bar scene first; this auxiliary window opens on demand.
         Window("F1 Menu Bar", id: "championship") {
-            ChampionshipWindow(store: store, liveStore: liveStore, historyStore: historyStore, trackMapRepository: trackMapRepository,
+            ChampionshipWindow(store: store, liveStore: liveStore, historyStore: historyStore,
                 preferences: preferences, coordinator: coordinator, loginItem: loginItem)
                 .preferredColorScheme(preferences.colorScheme)
                 .frame(minWidth: 1000, minHeight: 720)

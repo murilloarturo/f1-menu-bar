@@ -87,37 +87,35 @@ struct LiveTimingConnectionHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text([store.state.snapshot.meetingName, store.state.snapshot.sessionName]
-                    .compactMap { $0 }.joined(separator: " · "))
-                    .font(.subheadline).foregroundStyle(.secondary)
-                Spacer()
-                Button(store.isRunning ? "Disconnect" : "Connect") {
-                    if store.isRunning { store.disconnect() } else { store.connect() }
-                }.buttonStyle(.bordered)
-            }
             TimelineView(.periodic(from: .now, by: 1)) { clock in
                 let state = store.state
                 let live = LiveTimingConnectionPresentation.isLive(state, at: clock.date)
-                HStack(spacing: 12) {
-                    Label(LiveTimingConnectionPresentation.status(state, at: clock.date),
-                          systemImage: live ? "dot.radiowaves.left.and.right" : "clock")
-                        .foregroundStyle(live ? Color.green : Color.secondary)
-                    if let lap = state.snapshot.currentLap {
-                        Text(state.snapshot.totalLaps.map { "Lap \(lap) / \($0)" } ?? "Lap \(lap)")
-                            .monospacedDigit()
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Label(LiveTimingConnectionPresentation.status(state, at: clock.date),
+                              systemImage: live ? "dot.radiowaves.left.and.right" : "clock")
+                            .foregroundStyle(live ? Color.green : Color.secondary)
+                        Spacer(minLength: 8)
+                        Button(store.isRunning ? "Disconnect" : "Connect") {
+                            if store.isRunning { store.disconnect() } else { store.connect() }
+                        }.buttonStyle(.bordered)
                     }
-                    if state.snapshot.trackStatus != nil || state.snapshot.trackStatusCode != nil || state.snapshot.sessionStatus == "Aborted" {
-                        let indicator = LiveTrackIndicator.resolve(message: state.snapshot.trackStatus, code: state.snapshot.trackStatusCode, sessionStatus: state.snapshot.sessionStatus)
-                        Label(indicator.title ?? state.snapshot.trackStatus ?? "Unknown track status", systemImage: indicator.symbol)
-                            .foregroundStyle(indicator.color)
-                    }
-                    Spacer()
+                    HStack(spacing: 12) {
+                        if let lap = state.snapshot.currentLap {
+                            Text(state.snapshot.totalLaps.map { "Lap \(lap) / \($0)" } ?? "Lap \(lap)")
+                                .monospacedDigit()
+                        }
+                        if state.snapshot.trackStatus != nil || state.snapshot.trackStatusCode != nil || state.snapshot.sessionStatus == "Aborted" {
+                            let indicator = LiveTrackIndicator.resolve(message: state.snapshot.trackStatus, code: state.snapshot.trackStatusCode, sessionStatus: state.snapshot.sessionStatus)
+                            Label(indicator.title ?? state.snapshot.trackStatus ?? "Unknown track status", systemImage: indicator.symbol)
+                                .foregroundStyle(indicator.color)
+                        }
+                    }.font(.title3.weight(.semibold))
                     if let date = state.snapshot.receivedAt {
-                        Text("Received \(Presentation.date(date, format: "jmmss", zone: preferences.timeZone))").font(.caption)
-                            .foregroundStyle(.secondary).monospacedDigit()
+                        Text("Received \(Presentation.date(date, format: "jmmss", zone: preferences.timeZone))")
+                            .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                     }
-                }.font(.title3.weight(.semibold))
+                }
             }
             LiveSessionClockView(store: store)
             if let message = store.state.message {

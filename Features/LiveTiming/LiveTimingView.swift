@@ -83,19 +83,52 @@ struct LiveTimingView: View {
         return season?.snapshot.weekends.first { $0.name.caseInsensitiveCompare(meeting) == .orderedSame }
     }
     private var mapLap: Int { playback.lap ?? snapshot.currentLap ?? 1 }
-    @ViewBuilder private var timingHeader: some View {
-        let title = SectionHeader(title: "Live timing", subtitle: usesLive ? "Experimental personal connection" : "Recorded session · real historical data")
-        if let weekend = mapWeekend,
-           ["Race", "Sprint"].contains(snapshot.sessionName ?? ""),
-           TrackTimingEstimate.make(snapshot: snapshot, playbackSeconds: 0) != nil,
-           TrackLayoutCatalog.outline(for: weekend).count > 2 {
-            HStack(alignment: .top) {
-                title
-                Spacer(minLength: 10)
-                LiveTimingTrackMiniature(snapshot: snapshot, weekend: weekend, lap: mapLap)
-                    .id("\(snapshot.sessionID ?? ""):\(mapLap):\(snapshot.drivers.first(where: { $0.position == 1 })?.lastLap ?? "")")
+    private var timingHeader: some View {
+        HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Live timing").font(.system(size: 25, weight: .semibold)).tracking(-0.6)
+                sessionSelection
+                sessionDetails.frame(minHeight: 72, alignment: .topLeading)
+            }.frame(maxWidth: .infinity, alignment: .topLeading)
+            // Keep the header's dimensions stable while a selected session loads.
+            ZStack(alignment: .topTrailing) {
+                Color.clear
+                if let weekend = mapWeekend,
+                   TrackTimingEstimate.make(snapshot: snapshot, playbackSeconds: 0) != nil,
+                   TrackLayoutCatalog.outline(for: weekend).count > 2 {
+                    LiveTimingTrackMiniature(snapshot: snapshot, weekend: weekend, lap: mapLap)
+                        .id("\(snapshot.sessionID ?? ""):\(mapLap):\(snapshot.drivers.first(where: { $0.position == 1 })?.lastLap ?? "")")
+                }
+            }.frame(width: 260, height: 140)
+        }
+    }
+
+    @ViewBuilder private var sessionDetails: some View {
+        if usesLive {
+            if liveSnapshotMatchesSelection { LiveTimingConnectionHeader(store: store, preferences: preferences) }
+            else {
+                HStack {
+                    Label("Waiting for session timing", systemImage: "clock")
+                    Spacer()
+                    Button(store.isRunning ? "Disconnect" : "Connect") {
+                        if store.isRunning { store.disconnect() } else { store.connect() }
+                    }.buttonStyle(.bordered)
+                }
             }
-        } else { title }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Label(historyStore?.isLoading == true ? "Loading session…" : "Recorded session", systemImage: "clock")
+                    if let lap = snapshot.currentLap { Text("Lap \(lap)").monospacedDigit() }
+                    Spacer()
+                    if historyStore?.isLoading == true { ProgressView().controlSize(.small) }
+                    Button("Refresh") {
+                        if let historicalRequest { Task { await historyStore?.load(historicalRequest, force: true) } }
+                    }.buttonStyle(.bordered).disabled(historyStore?.isLoading == true)
+                }
+                if let issue = historyStore?.issue { IssueBanner(message: issue) }
+            }
+        }
     }
 
     var body: some View {
@@ -132,27 +165,6 @@ struct LiveTimingView: View {
     private func content(minimumHeight: CGFloat, availableWidth: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             timingHeader
-            sessionSelection
-            if usesLive {
-                if liveSnapshotMatchesSelection { LiveTimingConnectionHeader(store: store, preferences: preferences) }
-                else {
-                    HStack {
-                        Label("Waiting for \(currentRequest?.weekend.name ?? "current GP") · \(currentRequest?.session?.name ?? "session")", systemImage: "clock")
-                        Spacer()
-                        Button(store.isRunning ? "Disconnect" : "Connect") { if store.isRunning { store.disconnect() } else { store.connect() } }
-                    }
-                }
-            }
-            else {
-                HStack {
-                    Label("Recorded · \(snapshot.meetingName ?? "") · \(snapshot.sessionName ?? "")", systemImage: "clock")
-                    Spacer()
-                    Button("Refresh") { if let historicalRequest { Task { await historyStore?.load(historicalRequest, force: true) } } }
-                        .disabled(historyStore?.isLoading == true)
-                }.font(.headline)
-                if let issue = historyStore?.issue { IssueBanner(message: issue) }
-                if historyStore?.isLoading == true { ProgressView().controlSize(.small) }
-            }
             replayControls
             if showsPositions {
                 if let history = positionHistory {

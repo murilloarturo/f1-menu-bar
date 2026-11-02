@@ -259,7 +259,7 @@ import XCTest
         live = LiveTimingStore(feed: feed)
         let preferences = AppPreferences(defaults: UserDefaults(suiteName: "F1LayoutTests-\(UUID().uuidString)")!)
         let root = ChampionshipWindow(store: season, liveStore: live, historyStore: RaceHistoryStore(repository: EmptyHistoryRepository()),
-            trackMapRepository: TrackMapRepository(client: OpenF1Client()), preferences: preferences,
+            preferences: preferences,
             coordinator: coordinator, loginItem: LoginItemController()).frame(minWidth: 1000, minHeight: 720)
         host = NSHostingView(rootView: AnyView(root))
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 720),
