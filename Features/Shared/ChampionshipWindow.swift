@@ -6,6 +6,7 @@ struct ChampionshipWindow: View {
     let store: SeasonStore
     let liveStore: LiveTimingStore
     let historyStore: RaceHistoryStore
+    let trackMapRepository: TrackMapRepository
     let preferences: AppPreferences
     @Bindable var coordinator: AppCoordinator
     let loginItem: LoginItemController
@@ -17,7 +18,7 @@ struct ChampionshipWindow: View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: Binding<AppSection?>(get: { coordinator.section }, set: { if let value = $0 { coordinator.section = value } })) {
                 Section("Championship") {
-                    ForEach([AppSection.live, .calendar, .drivers, .constructors]) { section in
+                    ForEach([AppSection.live, .trackMap, .calendar, .drivers, .constructors]) { section in
                         Label(section.title, systemImage: section.symbol).tag(section)
                     }
                 }
@@ -37,6 +38,7 @@ struct ChampionshipWindow: View {
                     case .constructors: StandingsView(snapshot: store.visibleSnapshot, drivers: false, loading: store.isRefreshing,
                         now: store.now, timeZone: preferences.timeZone)
                     case .live: LiveTimingView(store: liveStore, preferences: preferences, season: store, historyStore: historyStore, coordinator: coordinator)
+                    case .trackMap: TrackMapView(season: store, liveStore: liveStore, repository: trackMapRepository)
                     case .settings: SettingsView(preferences: preferences, store: store, loginItem: loginItem)
                     }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -56,7 +58,8 @@ struct ChampionshipWindow: View {
         .navigationSplitViewStyle(.balanced)
         .background(WindowVisibilityReader { visible in
             isWindowVisible = visible
-            liveStore.setVisible(visible && coordinator.section == .live && coordinator.wantsLiveTiming)
+            liveStore.setVisible(visible && (coordinator.section == .trackMap ||
+                coordinator.section == .live && coordinator.wantsLiveTiming))
         }.frame(width: 0, height: 0))
         .navigationTitle("F1 Menu Bar")
         .toolbar {
@@ -88,10 +91,12 @@ struct ChampionshipWindow: View {
         .onChange(of: coordinator.section) { _, section in
             logger.info("Navigate section=\(section.rawValue, privacy: .public) windowVisible=\(isWindowVisible)")
             columnVisibility = .all
-            liveStore.setVisible(isWindowVisible && section == .live && coordinator.wantsLiveTiming)
+            liveStore.setVisible(isWindowVisible && (section == .trackMap ||
+                section == .live && coordinator.wantsLiveTiming))
         }
         .onChange(of: coordinator.wantsLiveTiming) { _, wanted in
-            liveStore.setVisible(isWindowVisible && coordinator.section == .live && wanted)
+            liveStore.setVisible(isWindowVisible && (coordinator.section == .trackMap ||
+                coordinator.section == .live && wanted))
         }
         .onChange(of: coordinator.navigationRevision) { _, _ in columnVisibility = .all }
         .onDisappear {
@@ -109,7 +114,7 @@ struct ChampionshipWindow: View {
         switch coordinator.section {
         case .drivers: date = snapshot.driverContext?.updatedAt
         case .constructors: date = snapshot.constructorContext?.updatedAt
-        case .calendar, .settings, .live: date = snapshot.scheduleUpdatedAt
+        case .calendar, .settings, .live, .trackMap: date = snapshot.scheduleUpdatedAt
         }
         return date.map { "Updated \(Presentation.date($0, format: "d MMM jmm", zone: preferences.timeZone))" } ?? "Waiting for published data"
     }
