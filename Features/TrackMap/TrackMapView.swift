@@ -11,6 +11,7 @@ struct TrackMapView: View {
     @State private var replay: TrackMapReplay?
     @State private var issue: String?
     @State private var isLoading = false
+    @State private var loadRevision = UUID()
     @State private var isPlaying = true
     @State private var playhead = 0.0
     @State private var selectedDriver: Int?
@@ -201,19 +202,25 @@ struct TrackMapView: View {
     }
 
     private func load() async {
+        let revision = UUID()
+        loadRevision = revision
+        replay = nil; selectedDriver = nil; playhead = 0
         guard let session, let weekend else {
             replay = nil
             issue = "No started session is available. Showing an illustrative preview."
             return
         }
         isLoading = true; issue = nil
-        defer { isLoading = false }
+        defer { if loadRevision == revision { isLoading = false } }
         do {
-            replay = try await repository.load(sessionID: session.id, weekend: weekend, session: session,
+            let loaded = try await repository.load(sessionID: session.id, weekend: weekend, session: session,
                                                preferOpenF1: season.visibleSnapshot.provider == .openF1)
+            guard loadRevision == revision, !Task.isCancelled else { return }
+            replay = loaded
             playhead = 0; selectedDriver = nil; isPlaying = true
         } catch is CancellationError { }
         catch {
+            guard loadRevision == revision, !Task.isCancelled else { return }
             replay = nil
             issue = "Recorded car locations could not be loaded: \(error.localizedDescription) Showing an illustrative preview."
             playhead = 0
